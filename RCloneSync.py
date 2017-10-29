@@ -1,13 +1,17 @@
 #!/usr/bin/env python
-#========================================================== 
+#========================================================= 
 #
-#  Basic BiDirectional Sync using RClone
+#  Basic BiDirectional Sync using RClone 
 #
 #  Usage
 #   Configure rclone, including authentication before using this tool.  rclone must be in the search path.
 #
-#  Chris Nelson, August 2017
+#  Chris Nelson, October 2017
 #
+# 171015  Moved tooManyLocalDeletes error message down below the remote check to provide both local and remote change lists to the stdout
+# 170917  Added --Force switch - required when the the % changes on local or remote system are grater than maxDelta.  Safeguard for
+#       local or remote not online.
+#       Added --ignore-times to the copy of changed file on remote to local.  Was not copying files with matching sizes.
 # 170805  Added --Verbose command line switch 
 # 170730  Horrible bug - remote lsl failing results in deleting all local files, and then iteratively replicating _LOCAL and _REMOTE files.
 #       Added connection test/checking files to abort if the basic connection is down.  RCLONE_TEST files on the local system
@@ -36,7 +40,8 @@ import shlex
 import logging
 import collections                          # dictionary sorting 
 
-localWD =    "/home/xxx/RCloneSyncWD/"      # File lists for the local and remote trees as of last sync, etc. 
+localWD =    "/home/cjn/RCloneSyncWD/"      # File lists for the local and remote trees as of last sync, etc.
+maxDelta = 5                                # % delta allowed. If exceeded
 
 logging.basicConfig(format='%(asctime)s/%(levelname)s:  %(message)s')   # /%(module)s/%(funcName)s
 
@@ -180,10 +185,12 @@ def main():
     # ***** Check for LOCAL deltas relative to the prior sync
     logging.info (printMsg ("LOCAL", "Checking for Diffs", localRoot))
     localDeltas = {}
+    localDeleted = 0
     for key in localPrior:
         _newer=False; _older=False; _size=False; _deleted=False
         if key not in localNow:
             logging.info (printMsg ("LOCAL", "  File was deleted", key))
+            localDeleted += 1
             _deleted=True            
         else:
             if localPrior[key]['datetime'] != localNow[key]['datetime']:
@@ -212,11 +219,13 @@ def main():
 
     # ***** Check for REMOTE deltas relative to the last sync
     logging.info (printMsg ("REMOTE", "Checking for Diffs", remoteName))
+    remoteDeleted = 0
     remoteDeltas = {}
     for key in remotePrior:
         _newer=False; _older=False; _size=False; _deleted=False
         if key not in remoteNow:
             logging.info (printMsg ("REMOTE", "  File was deleted", key))
+            remoteDeleted += 1
             _deleted=True            
         else:
             if remotePrior[key]['datetime'] != remoteNow[key]['datetime']:
@@ -241,6 +250,23 @@ def main():
     remoteDeltas = collections.OrderedDict(sorted(remoteDeltas.items()))    # sort the deltas list
     if len(remoteDeltas) > 0:
         logging.warning ("  {:4} file change(s) on {}".format(len(remoteDeltas), remoteName))
+
+
+    # ***** Check for too many deleted files - possible error condition and don't want to start deleting on the other side !!!
+    tooManyLocalDeletes = False
+    if not force and float(localDeleted)/len(localPrior) > float(maxDelta)/100:
+        logging.error ("Excessive number of deletes (>{}%, {} of {}) found on the Local system {} - Aborting.  Run with --Force if desired."
+                       .format (maxDelta, localDeleted, len(localPrior), localRoot))
+        tooManyLocalDeletes = True
+
+    tooManyRemoteDeletes = False    # Local error message placed here so that it is at the end of the listed changes for both
+    if not force and float(remoteDeleted)/len(remotePrior) > float(maxDelta)/100:
+        logging.error ("Excessive number of deletes (>{}%, {} of {}) found on the Remote system {} - Aborting.  Run with --Force if desired."
+                       .format (maxDelta, remoteDeleted, len(remotePrior), remoteName))
+        tooManyRemoteDeletes = True
+
+    if tooManyLocalDeletes or tooManyRemoteDeletes:
+        return 1
 
 
     # ***** Update LOCAL with all the changes on REMOTE *****
@@ -276,13 +302,13 @@ def main():
                 src  = '"' + remoteName + key + '" '
                 dest = '"' + localRoot + '/' + key + '" '
                 logging.info (printMsg ("REMOTE", "  Copying to local", dest))
-                subprocess.call(shlex.split("rclone copyto " + src + dest + _dryRun))
+                subprocess.call(shlex.split("rclone copyto " + src + dest + "--ignore-times " + _dryRun))
             else:
                 src  = '"' + remoteName + key + '" '
                 dest = '"' + localRoot + '/' + key + '_REMOTE' + '" '
                 logging.warning (printMsg ("*****", "  Changed in both local and remote", key))
                 logging.warning (printMsg ("REMOTE", "  Copying to local", dest))
-                subprocess.call(shlex.split("rclone copyto " + src + dest + _dryRun))
+                subprocess.call(shlex.split("rclone copyto " + src + dest + "--ignore-times " + _dryRun))
                 # Also rename the local to _LOCAL
 
         if remoteDeltas[key]['deleted']:
@@ -319,7 +345,9 @@ def main():
         else:        syncVerbosity = ' '
         switches = ' ' #'--ignore-size '
         subprocess.call(shlex.split("rclone sync " + localRootSP + remoteNameSP + syncVerbosity + switches + excludes + _dryRun))
+        logging.info (">>>>> rmdirs Remote")
         subprocess.call(shlex.split("rclone rmdirs " + remoteNameSP + _dryRun))
+        logging.info (">>>>> rmdirs Local")
         subprocess.call(shlex.split("rclone rmdirs " + localRootSP + _dryRun))
 
 
@@ -408,6 +436,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="***** BiDirectional Sync for Cloud Services using RClone *****")
     parser.add_argument('Cloud',        help="Name of remote cloud service", choices=clouds)
     parser.add_argument('LocalRoot',    help="Path to local root", default=None)
+    parser.add_argument('--Force',      help="Bypass maxDelta ({}%%) safety check and run the sync".format(maxDelta), action='store_true')
     parser.add_argument('--FirstSync',  help="First run setup.  WARNING: Local files may overwrite Remote versions", action='store_true')
     parser.add_argument('--ExcludeListFile', help="File containing rclone file/path exclusions (Needed for Dropbox)", default=None)
     parser.add_argument('--Verbose',    help="Event logging with per-file details (Python INFO level - default is WARNING level)", action='store_true')
@@ -422,8 +451,9 @@ if __name__ == '__main__':
     verbose      = args.Verbose
     exclusions   = args.ExcludeListFile
     dryRun       = args.DryRun
+    force        = args.Force
 
-    if verbose:
+    if verbose or force:
         logging.getLogger().setLevel(logging.INFO)      # Log each file transaction
     else:
         logging.getLogger().setLevel(logging.WARNING)   # Log only unusual events
