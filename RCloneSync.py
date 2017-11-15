@@ -40,7 +40,10 @@ import collections                          # dictionary sorting
 
 
 # Configurations
-localWD =    "/home/cjn/RCloneSyncWD/"      # File lists for the local and remote trees as of last sync, etc.
+localWD = os.path.expanduser("~/.RCloneSyncWD/")    # File lists for the local and remote trees as of last sync, etc.
+if not os.path.exists(localWD):             # Create the localWD folder if it does not exist
+    os.makedirs(localWD)
+
 maxDelta = 50                               # % deleted allowed, else abort.  Use --Force to override.
 
 
