@@ -98,7 +98,7 @@ and remote-to-remote deltas, and then applying the changes on the other side.
 
 ### Notable features / functions / behaviors
 
-- RCloneSync applies any changes to the Local file system first, then uses `rlone sync` to make the Remote filesystem match the Local.
+- RCloneSync applies any changes to the Local file system first, then uses `rclone sync` to make the Remote filesystem match the Local.
 In the tables below, understand that the last operation is to do an `rclone sync` if RCloneSync makes changes on the local filesystem.
 
 - Any empty directories after the RCloneSync are deleted on both the Local and Remote filesystems.
