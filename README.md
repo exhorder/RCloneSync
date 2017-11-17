@@ -24,17 +24,18 @@ RCloneSync was developed and debugged for Google Drive and Dropbox (not tested o
 
 ```
 xxx@xxx RCloneSyncWD]$ ./RCloneSync.py -h
-2017-11-12 14:49:04,799/WARNING:  ***** BiDirectional Sync for Cloud Services using RClone *****
+2017-11-16 23:08:37,301/WARNING:  ***** BiDirectional Sync for Cloud Services using RClone *****
 usage: RCloneSync.py [-h] [--FirstSync] [--CheckAccess] [--Force]
                      [--ExcludeListFile EXCLUDELISTFILE] [--Verbose]
                      [--DryRun]
-                     {Dropbox:,GDrive:} LocalRoot
+                     Cloud LocalPath
 
 ***** BiDirectional Sync for Cloud Services using RClone *****
 
 positional arguments:
-  {Dropbox:,GDrive:}    Name of remote cloud service
-  LocalRoot             Path to local root
+  Cloud                 Name of remote cloud service (['Dropbox:', 'GDrive:'])
+                        plus optional path
+  LocalPath             Path to local tree base
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -51,43 +52,61 @@ optional arguments:
                         - default is WARNING level)
   --DryRun              Go thru the motions - No files are copied/deleted.
                         Also asserts --Verbose.
+
 ```	
 
 Typical run log:
 ```
-./RCloneSync.py Dropbox:  /mnt/raid1/share/public/DBox/Dropbox --CheckAccess --ExcludeListFile /home/xxx/RCloneSyncWD/Dropbox_Excludes --Verbose
-
-2017-10-29 13:05:19,556/WARNING:  ***** BiDirectional Sync for Cloud Services using RClone *****
-2017-10-29 13:05:19,565/INFO:  >>>>> Checking rclone Local and Remote access health
-2017-10-29 13:05:24,001/INFO:  >>>>> Generating Local and Remote lists
-2017-10-29 13:05:28,534/INFO:  LOCAL    Checking for Diffs                  - /mnt/raid1/share/public/DBox/Dropbox
-2017-10-29 13:05:28,535/INFO:  LOCAL      File is new                       - Public/imagesCASWV071 - Copy.jpg
-2017-10-29 13:05:28,535/WARNING:       1 file change(s) on the Local system /mnt/raid1/share/public/DBox/Dropbox
-2017-10-29 13:05:28,535/INFO:  REMOTE   Checking for Diffs                  - Dropbox:
-2017-10-29 13:05:28,535/INFO:  REMOTE     File was deleted                  - Public/imagesCAB79VH9a.jpg
-2017-10-29 13:05:28,536/WARNING:       1 file change(s) on Dropbox:
-2017-10-29 13:05:28,536/INFO:  >>>>> Applying changes on Remote to Local
-2017-10-29 13:05:28,536/INFO:  LOCAL      Deleting file                     - "/mnt/raid1/share/public/DBox/Dropbox/Public/imagesCAB79VH9a.jpg" 
-2017-10-29 13:05:28,542/INFO:  >>>>> Synching Local to Remote
-2017/10/29 13:05:28 INFO  : Dropbox root '': Modify window is 1s
-2017/10/29 13:05:30 INFO  : Public/imagesCASWV071 - Copy.jpg: Copied (new)
-2017/10/29 13:05:32 INFO  : Dropbox root '': Waiting for checks to finish
-2017/10/29 13:05:32 INFO  : Dropbox root '': Waiting for transfers to finish
-2017/10/29 13:05:32 INFO  : Waiting for deletions to finish
-2017/10/29 13:05:32 INFO  : 
-Transferred:   7.925 kBytes (1.833 kBytes/s)
+[xxx@xxx]$ ./RCloneSync.py  GDrive:   /mnt/raid1/share/public/DBox/GoogleDrive --CheckAccess --Verbose
+2017-11-16 23:18:10,899/WARNING:  ***** BiDirectional Sync for Cloud Services using RClone *****
+2017-11-16 23:18:10,909/WARNING:  Synching Remote path  <GDrive:>  with Local path  </mnt/raid1/share/public/DBox/GoogleDrive/>
+2017-11-16 23:18:10,909/INFO:  >>>>> Checking rclone Local and Remote filesystems access health
+2017-11-16 23:18:21,475/INFO:  >>>>> Generating Local and Remote lists
+2017-11-16 23:18:23,095/INFO:  LOCAL    Checking for Diffs                  - /mnt/raid1/share/public/DBox/GoogleDrive/
+2017-11-16 23:18:23,095/INFO:  LOCAL      File is newer                     - Exchange/config.txt4
+2017-11-16 23:18:23,095/WARNING:       1 file change(s) on LOCAL:     0 new,    1 newer,    0 older,    0 deleted
+2017-11-16 23:18:23,095/INFO:  REMOTE   Checking for Diffs                  - GDrive:
+2017-11-16 23:18:23,095/INFO:  REMOTE     File was deleted                  - Exchange/config.txt3
+2017-11-16 23:18:23,095/INFO:  REMOTE     File is new                       - Exchange/config.txt5
+2017-11-16 23:18:23,095/WARNING:       2 file change(s) on REMOTE:    1 new,    0 newer,    0 older,    1 deleted
+2017-11-16 23:18:23,095/INFO:  >>>>> Applying changes on Remote to Local
+2017-11-16 23:18:23,095/INFO:  LOCAL      Deleting file                     - "/mnt/raid1/share/public/DBox/GoogleDrive/Exchange/config.txt3" 
+2017/11/16 23:18:23 INFO  : Local file system at /mnt/raid1/share/public/DBox/GoogleDrive/Exchange: Modify window is 1ns
+2017/11/16 23:18:23 INFO  : Waiting for deletions to finish
+2017/11/16 23:18:23 INFO  : config.txt3: Deleted
+2017-11-16 23:18:23,101/INFO:  REMOTE     Copying to local                  - "/mnt/raid1/share/public/DBox/GoogleDrive/Exchange/config.txt5" 
+2017/11/16 23:18:24 INFO  : Local file system at /mnt/raid1/share/public/DBox/GoogleDrive/Exchange: Modify window is 1ms
+2017/11/16 23:18:24 INFO  : config.txt5: Copied (new)
+2017/11/16 23:18:24 INFO  : 
+Transferred:   4.214 kBytes (2.248 kBytes/s)
 Errors:                 0
-Checks:               851
+Checks:                 0
 Transferred:            1
-Elapsed time:        4.3s
+Elapsed time:        1.8s
 
-2017-10-29 13:05:32,867/INFO:  >>>>> rmdirs Remote
-2017-10-29 13:05:36,902/INFO:  >>>>> rmdirs Local
-2017-10-29 13:05:36,911/INFO:  >>>>> Refreshing Local and Remote lsl files
-2017-10-29 13:05:41,488/WARNING:  >>>>> All done.
+2017-11-16 23:18:24,979/INFO:  >>>>> Synching Local to Remote
+2017/11/16 23:18:25 INFO  : Google drive root '': Modify window is 1ms
+2017/11/16 23:18:25 INFO  : Google drive root '': Waiting for checks to finish
+2017/11/16 23:18:26 INFO  : Exchange/config.txt4: Updated modification time in destination
+2017/11/16 23:18:26 INFO  : Google drive root '': Waiting for transfers to finish
+2017/11/16 23:18:26 INFO  : Waiting for deletions to finish
+2017/11/16 23:18:26 INFO  : 
+Transferred:      0 Bytes (0 Bytes/s)
+Errors:                 0
+Checks:                 8
+Transferred:            0
+Elapsed time:        1.1s
+
+2017-11-16 23:18:26,165/INFO:  >>>>> rmdirs Remote
+2017/11/16 23:18:26 INFO  : Google drive root '': Modify window is 1ms
+2017-11-16 23:18:27,055/INFO:  >>>>> rmdirs Local
+2017/11/16 23:18:27 INFO  : Local file system at /mnt/raid1/share/public/DBox/GoogleDrive: Modify window is 1ns
+2017-11-16 23:18:27,061/INFO:  >>>>> Refreshing Local and Remote lsl files
+2017-11-16 23:18:27,940/WARNING:  >>>>> All done.
+
+
 ```
-Note the two different styles of timestamps in the above log.  Turning on --Verbose in RCloneSync also turns on rclone's --verbose only 
-for the `rclone sync` operation.
+Note the two different styles of timestamps in the above log.  Turning on --Verbose in RCloneSync also turns on rclone's --verbose mode.
 
 ## RCloneSync Operations
 
@@ -97,6 +116,17 @@ that match between the local and cloud copies of a file.  RCloneSync works aroun
 and remote-to-remote deltas, and then applying the changes on the other side. 
 
 ### Notable features / functions / behaviors
+
+- The **Cloud** argument may be just the configured remote name (i.e., `GDrive:`), or it may include a path to a sub-directory within the 
+tree of the remote (i.e., `GDrive:/Exchange`).  Leading and trailing '/'s are not required but will be added by RCloneSync.  The 
+path reference is identical with or without the '/'s.  The LSL files in the RCloneSync's local working directory (`~/.RCloneSync`) are named based 
+on the Cloud argument, thus separate syncs to individual directories within the tree may be set up. 
+Test with `--DryRun` first to make sure the remote 
+and local path bases are as expected.  As usual, double quote `"Exchange/Paths with spaces"`.
+
+- For the **LocalPth** argument, absolute paths or paths relative to the current working directory may be used.  `RCloneSync GDrive:Exchange
+ /mnt/raid1/share/public/DBox/GoogleDrive` is equivalent to `RCloneSync GDrive:Exchange Exchange` if the cwd is /mnt/raid1/share/public/DBox/GoogleDrive.
+As usual, double quote `"Exchange/Paths with spaces"`.
 
 - RCloneSync applies any changes to the Local file system first, then uses `rclone sync` to make the Remote filesystem match the Local.
 In the tables below, understand that the last operation is to do an `rclone sync` if RCloneSync makes changes on the local filesystem.
@@ -157,4 +187,28 @@ Local deleted AND Remote changed | File is deleted on local AND changed (newer/o
 Remote older|  File is older on remote, unchanged on local | `rclone sync` will push the newer local version to the remote.
 Local size | File size is different (same timestamp) | Not sure if `rclone sync` will pick up on just a size difference and push the local to the remote.
 
+
+## Revision history
+
+- 171115  Remote supports path entry.  Reworked LSL file naming to support for remote paths.
+       --Verbose switch applies to all rclone copyto, moveto, delete, and sync calls (was only on sync)
+
+- 171112  Revamped error handling to be effective.  See Readme.md.
+       Added --CheckAccess switch to make filesystems access test optional.  Default is False (no check).
+
+- 171015  Moved tooManyLocalDeletes error message down below the remote check to provide both local and remote change lists to the stdout
+
+- 170917  Added --Force switch - required when the the % changes on local or remote system are grater than maxDelta.  Safeguard for
+       local or remote not online.
+       Added --ignore-times to the copy of changed file on remote to local.  Was not copying files with matching sizes.
+
+- 170805  Added --Verbose command line switch 
+
+- 170730  Horrible bug - remote lsl failing results in deleting all local files, and then iteratively replicating _LOCAL and _REMOTE files.
+       Added connection test/checking files to abort if the basic connection is down.  RCLONE_TEST files on the local system
+       must match the remote system (and be unchanged), else abort.
+       Added lockfile so that a second run aborts if a first run is still in process, or failed and left the lockfile in place.
+       Added python logging, sorted processing
+
+- 170716  New
 
