@@ -6,25 +6,9 @@
 #  Usage
 #   Configure rclone, including authentication before using this tool.  rclone must be in the search path.
 #
-#  Chris Nelson, November 2017
+#  Chris Nelson, November 2017 - 2018
 #
-# 171119  Added 3x retry on rclone commands to improve robustness.  Beautified the `--Verbose` mode output.  Broke out control of 
-# 	rclone's verbosity with the`--rcVerbose` switch.
-# 171115  Remote supports path entry.  Reworked LSL file naming to support for remote paths.
-#       --Verbose switch applies to all rclone copyto, moveto, delete, and sync calls (was only on sync)
-# 171112  Revamped error handling to be effective.  See Readme.md.
-#       Added --CheckAccess switch to make filesystems access test optional.  Default is False (no check).
-# 171015  Moved tooManyLocalDeletes error message down below the remote check to provide both local and remote change lists to the stdout
-# 170917  Added --Force switch - required when the the % changes on local or remote system are grater than maxDelta.  Safeguard for
-#       local or remote not online.
-#       Added --ignore-times to the copy of changed file on remote to local.  Was not copying files with matching sizes.
-# 170805  Added --Verbose command line switch 
-# 170730  Horrible bug - remote lsl failing results in deleting all local files, and then iteratively replicating _LOCAL and _REMOTE files.
-#       Added connection test/checking files to abort if the basic connection is down.  RCLONE_TEST files on the local system
-#       must match the remote system (and be unchanged), else abort.
-#       Added lockfile so that a second run aborts if a first run is still in process, or failed and left the lockfile in place.
-#       Added python logging, sorted processing
-# 170716  New
+#  See README.md for revision history
 #
 # Known bugs:
 #   
