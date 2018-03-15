@@ -66,23 +66,24 @@ def bidirSync():
     def printMsg (locale, msg, key=''):
         return "  {:9}{:35} - {}".format(locale, msg, key)
 
-    excludes = ' '
+    excludes = []
     if exclusions:
         if not os.path.exists(exclusions):
             logging.error ("Specified Exclusions file does not exist:  " + exclusions)
             return RTN_ABORT
-        excludes = " --exclude-from " + exclusions + ' '
+        excludes.append("--exclude-from")
+        excludes.append(exclusions)
 
     listFileBase  = localWD + remotePathBase.replace(':','_').replace(r'/','_')    # '/home/<user>/.RCloneSyncWD/Remote__some_path_' or '/home/<user>/.RCloneSyncWD/Remote_'
 
     localListFile  = listFileBase + '_llocalLSL'    # '/home/<user>/.RCloneSyncWD/Remote__some_path_llocalLSL'  (extra 'l' to make the dir list pretty)
     remoteListFile = listFileBase + '_remoteLSL'    # '/home/<user>/.RCloneSyncWD/Remote__some_path_remoteLSL'
 
-    switches = ' '
+    switches = []
     for x in range(rcVerbose):
-        switches += '-v '
+        switches.append("-v")
     if dryRun:
-        switches += '--dry-run '
+        switches.append("--dry-run")
         if os.path.exists (localListFile):          # If dryrun, origianl LSL files are preserved and lsl's are done to the _DRYRUN files
             subprocess.call (['cp', localListFile, localListFile + '_DRYRUN'])
             localListFile  += '_DRYRUN'
@@ -92,18 +93,24 @@ def bidirSync():
 
     # rclone call wrapper functions with retries
     maxTries=3
-    def rcloneLSL (path, ofile, options='', linenum=0):
+    def rcloneLSL (path, ofile, options=None, linenum=0):
         for x in range(maxTries):
             with open(ofile, "w") as of:
-                if not subprocess.call(shlex.split("rclone lsl " + path + ' ' + options), stdout=of):  return 0
+                processArgs = ["rclone", "lsl", path]
+                if not options == None: processArgs.extend(options)
+                if not subprocess.call(processArgs, stdout=of):  return 0
                 logging.warning (printMsg ("WARNING", "rclone lsl try {} failed.".format(x), path))
         logging.error (printMsg ("ERROR", "rclone lsl failed.  Specified path invalid?  (Line {})".format(linenum), path))
         return 1
         
 
-    def rcloneCmd (cmd, p1='', p2='', options='', linenum=0):
+    def rcloneCmd (cmd, p1='', p2='', options=None, linenum=0):
         for x in range(maxTries):
-            if not subprocess.call(shlex.split("rclone " + cmd + " " + p1 + " " + p2 + " " + options)):  return 0
+            processArgs = ["rclone", cmd]
+            if p1: processArgs.append(p1)
+            if p2: processArgs.append(p2)
+            if not options == None: processArgs.extend(options)
+            if not subprocess.call(processArgs):  return 0
             logging.warning (printMsg ("WARNING", "rclone {} try {} failed.".format(cmd, x), p1))
         logging.error (printMsg ("ERROR", "rclone {} failed.  (Line {})".format(cmd, linenum), p1))
         return 1
@@ -113,9 +120,9 @@ def bidirSync():
     # ***** FIRSTSYNC generate local and remote file lists, and copy any unique Remote files to Local ***** 
     if firstSync:
         logging.info (">>>>> Generating --FirstSync Local and Remote lists")
-        if rcloneLSL (localPathBase, localListFile, options=excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
+        if rcloneLSL (localPathBase, localListFile, excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
 
-        if rcloneLSL (remotePathBase, remoteListFile, options=excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
+        if rcloneLSL (remotePathBase, remoteListFile, excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
 
         status, localNow  = loadList (localListFile)
         if status:  logging.error (printMsg ("ERROR", "Failed loading local list file <{}>".format(localListFile))); return RTN_CRITICAL
@@ -125,12 +132,12 @@ def bidirSync():
 
         for key in remoteNow:
             if key not in localNow:
-                src  = '"' + remotePathBase + key + '" '        # Extra space for shlex.split
-                dest = '"' + localPathBase + key + '" '
+                src  = remotePathBase + key
+                dest = localPathBase + key
                 logging.info (printMsg ("REMOTE", "  Copying to local", dest))
-                if rcloneCmd ('copyto', src, dest, options=switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                if rcloneCmd ('copyto', src, dest, switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
 
-        if rcloneLSL (localPathBase, localListFile, options=excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
+        if rcloneLSL (localPathBase, localListFile, excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
 
 
     # ***** Check for existance of prior local and remote lsl files *****
@@ -146,9 +153,9 @@ def bidirSync():
         remoteChkListFile = listFileBase + '_remoteChkLSL'
         chkFile = 'RCLONE_TEST'
 
-        if rcloneLSL (localPathBase, localChkListFile, options='--include ' + chkFile, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_ABORT
+        if rcloneLSL (localPathBase, localChkListFile, ['--include', chkFile], linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_ABORT
 
-        if rcloneLSL (remotePathBase, remoteChkListFile, options='--include ' + chkFile, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_ABORT
+        if rcloneLSL (remotePathBase, remoteChkListFile, ['--include', chkFile], linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_ABORT
 
         status, localCheck  = loadList (localChkListFile)
         if status:  logging.error (printMsg ("ERROR", "Failed loading local check list file <{}>".format(localChkListFile))); return RTN_CRITICAL
@@ -173,10 +180,10 @@ def bidirSync():
     logging.info (">>>>> Generating Local and Remote lists")
 
     localListFileNew = listFileBase + '_llocalLSL_new'
-    if rcloneLSL (localPathBase, localListFileNew, options=excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
+    if rcloneLSL (localPathBase, localListFileNew, excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
 
     remoteListFileNew = listFileBase + '_remoteLSL_new'
-    if rcloneLSL (remotePathBase, remoteListFileNew, options=excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
+    if rcloneLSL (remotePathBase, remoteListFileNew, excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
 
 
     # ***** Load Current and Prior listings of both Local and Remote trees *****
@@ -307,67 +314,67 @@ def bidirSync():
             #logging.info (printMsg ("REMOTE", "  New file", key))
             if key not in localNow:
                 # File is new on remote, does not exist on local
-                src  = '"' + remotePathBase + key + '" '
-                dest = '"' + localPathBase + key + '" '
+                src  = remotePathBase + key
+                dest = localPathBase + key
                 logging.info (printMsg ("REMOTE", "  Copying to local", dest))
-                if rcloneCmd ('copyto', src, dest, options=switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                if rcloneCmd ('copyto', src, dest, switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
 
             else:
                 # File is new on remote AND new on local
-                src  = '"' + remotePathBase + key + '" '
-                dest = '"' + localPathBase + key + '_REMOTE' + '" '
+                src  = remotePathBase + key 
+                dest = localPathBase + key + '_REMOTE' 
                 logging.warning (printMsg ("WARNING", "  Changed in both local and remote", key))
                 logging.warning (printMsg ("REMOTE", "  Copying to local", dest))
-                if rcloneCmd ('copyto', src, dest, options=switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                if rcloneCmd ('copyto', src, dest, switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
                 # Rename local
-                src  = '"' + localPathBase + key + '" '
-                dest = '"' + localPathBase + key + '_LOCAL' + '" '
+                src  = localPathBase + key 
+                dest = localPathBase + key + '_LOCAL' 
                 logging.warning (printMsg ("LOCAL", "  Renaming local copy", dest))
-                if rcloneCmd ('moveto', src, dest, options=switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                if rcloneCmd ('moveto', src, dest, switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
 
 
         if remoteDeltas[key]['newer']:
             if key not in localDeltas:
                 # File is newer on remote, unchanged on local
-                src  = '"' + remotePathBase + key + '" '
-                dest = '"' + localPathBase + key + '" '
+                src  = remotePathBase + key 
+                dest = localPathBase + key 
                 logging.info (printMsg ("REMOTE", "  Copying to local", dest))
-                if rcloneCmd ('copyto', src, dest, options="--ignore-times " + switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                if rcloneCmd ('copyto', src, dest, ["--ignore-times"] + switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
             else:
                 if key in localNow:
                     # File is newer on remote AND also changed (newer/older/size) on local
-                    src  = '"' + remotePathBase + key + '" '
-                    dest = '"' + localPathBase + key + '_REMOTE' + '" '
+                    src  = remotePathBase + key 
+                    dest = localPathBase + key + '_REMOTE' 
                     logging.warning (printMsg ("WARNING", "  Changed in both local and remote", key))
                     logging.warning (printMsg ("REMOTE", "  Copying to local", dest))
-                    if rcloneCmd ('copyto', src, dest, options="--ignore-times " + switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                    if rcloneCmd ('copyto', src, dest, ["--ignore-times"] + switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
                     # Rename local
-                    src  = '"' + localPathBase + key + '" '
-                    dest = '"' + localPathBase + key + '_LOCAL' + '" '
+                    src  = localPathBase + key 
+                    dest = localPathBase + key + '_LOCAL' 
                     logging.warning (printMsg ("LOCAL", "  Renaming local copy", dest))
-                    if rcloneCmd ('moveto', src, dest, options=switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                    if rcloneCmd ('moveto', src, dest, switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
                 else:
                     # File is newer on remote AND also deleted locally
-                    src  = '"' + remotePathBase + key + '" '
-                    dest = '"' + localPathBase + key + '" '
+                    src  = remotePathBase + key 
+                    dest = localPathBase + key 
                     logging.info (printMsg ("REMOTE", "  Copying to local", dest))
-                    if rcloneCmd ('copyto', src, dest, options="--ignore-times " + switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                    if rcloneCmd ('copyto', src, dest, ["--ignore-times"] + switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
                     
 
         if remoteDeltas[key]['deleted']:
             if key not in localDeltas:
                 if key in localNow:
                     # File is deleted on remote, unchanged locally
-                    src  = '"' + localPathBase + key + '" '
+                    src  = localPathBase + key 
                     logging.info (printMsg ("LOCAL", "  Deleting file", src))
-                    if rcloneCmd ('delete', src, options=switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                    if rcloneCmd ('delete', src, switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
 
                     # File is deleted on remote AND changed (newer/older/size) on local
                     # Local version survives
 ##            else:
 ##                if key in localNow:
-##                    src  = '"' + localRoot + '/' + key + '" '
-##                    dest = '"' + localRoot + '/' + key + '_LOCAL' + '" '
+##                    src  = localRoot + '/' + key 
+##                    dest = localRoot + '/' + key + '_LOCAL' 
 ##                    logging.warning (printMsg ("*****", "  Also changed locally", key))
 ##                    logging.warning (printMsg ("LOCAL", "  Renaming local", dest))
 ##                    if subprocess.call(shlex.split("rclone moveto " + src + dest + switches)):
@@ -377,11 +384,11 @@ def bidirSync():
         if localDeltas[key]['deleted']:
             if (key in remoteDeltas) and (key in remoteNow):
                 # File is deleted on local AND changed (newer/older/size) on remote
-                src  = '"' + remotePathBase + key + '"'
-                dest = '"' + localPathBase + key + '"'
+                src  = remotePathBase + key 
+                dest = localPathBase + key 
                 logging.warning (printMsg ("WARNING", "  Deleted locally and also changed remotely", key))
                 logging.warning (printMsg ("REMOTE", "  Copying to local", dest))
-                if rcloneCmd ('copyto', src, dest, options=switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+                if rcloneCmd ('copyto', src, dest, switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
 
 
     # ***** Sync LOCAL changes to REMOTE ***** 
@@ -389,14 +396,14 @@ def bidirSync():
         logging.info (">>>>> No changes on Local  - Skipping sync from Local to Remote")
     else:
         logging.info (">>>>> Synching Local to Remote")
-        # switches = ' ' #'--ignore-size '
-        if rcloneCmd ('sync', localPathBase, remotePathBase, options=excludes + switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+        # switches = '' #'--ignore-size '
+        if rcloneCmd ('sync', localPathBase, remotePathBase, excludes + switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
 
         logging.info (">>>>> rmdirs Remote")
-        if rcloneCmd ('rmdirs', remotePathBase, options=switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+        if rcloneCmd ('rmdirs', remotePathBase, None, switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
 
         logging.info (">>>>> rmdirs Local")
-        if rcloneCmd ('rmdirs', localPathBase, options=switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
+        if rcloneCmd ('rmdirs', localPathBase, None, switches, linenum=inspect.getframeinfo(inspect.currentframe()).lineno): return RTN_CRITICAL
 
 
     # ***** Clean up *****
@@ -404,9 +411,9 @@ def bidirSync():
     os.remove(remoteListFileNew)
     os.remove(localListFileNew)
 
-    if rcloneLSL (localPathBase, localListFile, options=excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
+    if rcloneLSL (localPathBase, localListFile, excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
 
-    if rcloneLSL (remotePathBase, remoteListFile, options=excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
+    if rcloneLSL (remotePathBase, remoteListFile, excludes, linenum=inspect.getframeinfo(inspect.currentframe()).lineno):  return RTN_CRITICAL
 
 
 
