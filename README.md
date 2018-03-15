@@ -131,6 +131,12 @@ original files are not found).  These files may possibly be valid and may be ren
 to unblock further RCloneSync runs.  Some errors are considered temporary, and re-running the RCloneSync is not blocked. 
 Within the code, see usages of `return RTN_CRITICAL` and `return RTN_ABORT`.  `return RTN_CRITICAL` blocks further RCloneSync runs.
 
+- **--DryRun oddity** - The --DryRun messages may indicate that it would try to delete files on the remote server in the last 
+RCloneSync step of rclone syncing the local to the remote.  If the file did not exist locally then it would normally be copied to 
+the local filesystem, but with --DryRun enabled those copies didn't happen, and thus on the final rclone sync step they don't exist locally, 
+which leads to the attempted delete on the remote, blocked again by --DryRun `... Not deleting as --dry-run`.  This whole situation is an 
+artifact of the --DryRun switch.  Scrutinize the proposed deletes carefully, and if they would have been copied to local then they may be disregarded.
+
 - **Lock file** - When RCloneSync is running, a lock file is created (/tmp/RCloneSync_LOCK).  If RCloneSync should crash or 
 hang the lock file will remain in place and block any further runs of RCloneSync.  Delete the lock file as part of 
 debugging the situation.  The lock file effectively blocks follow on CRON scheduled runs when the prior invocation 
@@ -170,6 +176,9 @@ Local size | File size is different (same timestamp) | Not sure if `rclone sync`
 
 
 ## Revision history
+
+- 180314  Incorporated rework by croadfeldt, changing handling of subprocess commands and many src/dest, etc. from strings 
+		to lists.  No functional or interface changes.  Added --DryRun oddity note to the README.
 
 - 171119  Added 3x retry on rclone commands to improve robustness.  Beautified the `--Verbose` mode output.  Broke out control of 
 		rclone's verbosity with the`--rcVerbose` switch.
