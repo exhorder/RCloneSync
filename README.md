@@ -11,6 +11,9 @@ I use RCloneSync on a Centos 7 box to sync both Dropbox and Google Drive to a lo
 I run RCloneSync as a Cron job every 30 minutes, or on-demand from the command line.  
 RCloneSync was developed and debugged for Google Drive and Dropbox (not tested on other services).  
 
+You may be interested in @hildogjr 's forked version.  He has added support for Python 3 and made many Python standardization 
+edits - functionally equivalent, I believe.
+
 ### High level behaviors / operations
 -  Keeps `rclone lsl` file lists of the Local and Remote systems, and on each run checks for deltas on Local and Remote
 -  Applies Remote deltas to the Local filesystem, then `rclone syncs` the Local to the Remote filesystem
@@ -118,7 +121,8 @@ do either a run without --CheckAccess or a --FirstSync to set matching files on 
 - **Verbosity controls** - `--Verbose` enables RCloneSync's logging of each check and action (as shown in the typical run log, above). 
 rclone's verbosity levels also be enabled using the `--rcVerbose` switch.  rclone supports additional verbosity levels which may be 
 enabled by providing the `--rcVerbose` switch more than once.  Turning on rclone's verbosity using `--rcVerbose` will also turn on
-RCloneSync's `--Verbose` switch.
+RCloneSync's `--Verbose` switch.  **Note** that RCloneSync's log messages have '-'s in the date stamp (2018-06-11), and rclone's 
+log messages have '/'s in the date stamp (2018/06/11).
 
 - **Runtime Error Handling** - Certain RCloneSync critical errors, such as `rclone copyto` failing, 
 will result in an RCloneSync lockout of successive runs.  The lockout is asserted because the sync status of the local and remote filesystems
@@ -176,6 +180,10 @@ Local size | File size is different (same timestamp) | Not sure if `rclone sync`
 
 
 ## Revision history
+
+- 180611  Bug fix:  A deleted a file on the Remote filesystem results in an rclone delete on the Local filesystem.  If switches to rclone are enabled 
+		(--rcVerbose or --DryRun) then the issued delete command was incorrect -- the switches became the p2 param to rcloneCmd.
+		Added `options=' to all calls to rcloneCmd to force switches the options keyword arg.
 
 - 180314  Incorporated rework by croadfeldt, changing handling of subprocess commands and many src/dest, etc. from strings 
 		to lists.  No functional or interface changes.  Added --DryRun oddity note to the README.
