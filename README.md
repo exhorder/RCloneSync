@@ -1,3 +1,5 @@
+# Please see [rclonesync-V2](https://github.com/cjnaz/rclonesync-V2)
+
 # RCloneSync
  
 
