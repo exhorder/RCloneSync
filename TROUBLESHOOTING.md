@@ -1,5 +1,5 @@
 # Troubleshoot notes 
-
+ 
 ## Reading rclone and RCloneSync logs
 RCloneSync's log messages have dashes in the dates, such as `2018-05-26`, and rclone's log messages have slashes in the dates, 
 such as `2018/05/26`. This will give you a clue on which layer is complaining.  
